@@ -1,0 +1,11 @@
+{
+  "name": "readlens-root",
+  "version": "1.0.0",
+  "description": "ReadLens AI root scripts",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "backend": "cd backend && .venv\\Scripts\\python run.py"
+  }
+}

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import { isClerkMocked } from "@/lib/auth-helper";
+import dynamic from "next/dynamic";
 import "./globals.css";
+
+const ClerkProviderWrapper = dynamic(() => import("@/components/ClerkProviderWrapper"), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,14 +46,14 @@ export default function RootLayout({
   }
 
   return (
-    <ClerkProvider>
+    <ClerkProviderWrapper>
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
         {bodyContent}
       </html>
-    </ClerkProvider>
+    </ClerkProviderWrapper>
   );
 }
 

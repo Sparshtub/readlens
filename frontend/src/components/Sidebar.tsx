@@ -1,7 +1,7 @@
 import { useReaderStore } from "@/store/readerStore";
-import { UserButton, SignInButton } from "@clerk/nextjs";
 import { isClerkMocked } from "@/lib/auth-helper";
 import { useAppAuth } from "@/hooks/useAppAuth";
+import dynamic from "next/dynamic";
 import { 
   BookOpen, 
   StickyNote, 
@@ -14,6 +14,8 @@ import {
   LogOut,
   FolderOpen
 } from "lucide-react";
+
+const ClerkControls = dynamic(() => import("@/components/ClerkControls"), { ssr: false });
 
 interface SidebarProps {
   currentView: "library" | "notes" | "analytics";
@@ -140,35 +142,7 @@ export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
             </div>
           ) : (
             /* Clerk Active Auth */
-            <>
-              {isSignedIn ? (
-                <>
-                  <UserButton />
-                  {sidebarOpen && (
-                    <div className="flex flex-col truncate">
-                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">Account</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Signed In</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center gap-2 justify-center w-full">
-                  {sidebarOpen ? (
-                    <SignInButton mode="modal">
-                      <button className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg w-full">
-                        Sign In
-                      </button>
-                    </SignInButton>
-                  ) : (
-                    <SignInButton mode="modal">
-                      <button className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                        <LogOut size={16} />
-                      </button>
-                    </SignInButton>
-                  )}
-                </div>
-              )}
-            </>
+            <ClerkControls sidebarOpen={sidebarOpen} isSignedIn={isSignedIn} />
           )}
         </div>
 

@@ -1,18 +1,23 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { isClerkMocked } from '@/lib/auth-helper';
 
 const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)', '/', '/api/v1(.*)']);
 
-export default clerkMiddleware(async (auth, request) => {
-  const pubKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  // Gracefully bypass if the developer hasn't configured real Clerk credentials yet
-  if (!pubKey || pubKey.includes('placeholder')) {
-    return;
+export default function middleware(request: NextRequest, event: any) {
+  // If Clerk is mocked (placeholder credentials), immediately bypass Clerk Middleware
+  if (isClerkMocked()) {
+    return NextResponse.next();
   }
   
-  if (!isPublicRoute(request)) {
-    await auth.protect();
-  }
-});
+  // Otherwise, invoke Clerk authentication middleware
+  return clerkMiddleware(async (auth, req) => {
+    if (!isPublicRoute(req)) {
+      await auth.protect();
+    }
+  })(request, event);
+}
 
 export const config = {
   matcher: [
