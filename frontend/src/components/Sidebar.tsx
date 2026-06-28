@@ -142,7 +142,7 @@ export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
             </div>
           ) : (
             /* Clerk Active Auth */
-            <ClerkControls sidebarOpen={sidebarOpen} isSignedIn={isSignedIn} />
+            <ClerkControls sidebarOpen={sidebarOpen ?? false} isSignedIn={isSignedIn ?? false} />
           )}
         </div>
 

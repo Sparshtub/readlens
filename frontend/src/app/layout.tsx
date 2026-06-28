@@ -4,7 +4,7 @@ import { isClerkMocked } from "@/lib/auth-helper";
 import dynamic from "next/dynamic";
 import "./globals.css";
 
-const ClerkProviderWrapper = dynamic(() => import("@/components/ClerkProviderWrapper"), { ssr: false });
+const ClerkProviderWrapper = dynamic(() => import("@/components/ClerkProviderWrapper"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
