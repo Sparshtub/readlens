@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.app.core.config import settings
-from backend.app.api.endpoints import documents, highlights
+from backend.app.api.endpoints import documents, highlights, chat, analytics
 from backend.app.db.session import engine
 from backend.app.db import models
 
@@ -37,6 +37,8 @@ app.mount(f"{settings.API_V1_STR}/documents/files", StaticFiles(directory=UPLOAD
 # Include Routers
 app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
 app.include_router(highlights.router, prefix=f"{settings.API_V1_STR}/highlights", tags=["highlights"])
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
+app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 
 @app.get("/")
 def read_root():

@@ -1,10 +1,9 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useReaderStore } from "@/store/readerStore";
 import { api } from "@/lib/api";
 import { useAppAuth } from "@/hooks/useAppAuth";
+import ChatPanel from "@/components/ChatPanel";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -13,7 +12,8 @@ import {
   Loader2, 
   Sparkles, 
   Languages, 
-  Highlighter 
+  Highlighter,
+  Bot
 } from "lucide-react";
 
 // Set up PDF.js worker
@@ -35,6 +35,7 @@ export default function Reader() {
     setCurrentPage, 
     numPages, 
     setNumPages, 
+    highlights,
     addHighlight, 
     theme 
   } = useReaderStore();
@@ -43,6 +44,7 @@ export default function Reader() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selection, setSelection] = useState<SelectionData | null>(null);
   const [creatingHighlight, setCreatingHighlight] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"companion" | "highlights">("companion");
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Monitor text selection
@@ -63,7 +65,7 @@ export default function Reader() {
       if (containerRect) {
         // Position popover relative to selection
         const x = rect.left - containerRect.left + (rect.width / 2);
-        const y = rect.top - containerRect.top - 45 + containerRef.current.scrollTop;
+        const y = rect.top - containerRect.top - 45 + (containerRef.current?.scrollTop || 0);
         
         setSelection({
           text,
@@ -104,6 +106,9 @@ export default function Reader() {
       // Clear selection
       window.getSelection()?.removeAllRanges();
       setSelection(null);
+      
+      // Switch tab to highlights to show explanation & translation
+      setActiveTab("highlights");
     } catch (error) {
       console.error("Failed to create highlight", error);
       alert("Failed to save highlight: " + (error as Error).message);
@@ -117,6 +122,23 @@ export default function Reader() {
     setSelection(null);
   };
 
+  // Analytics Heartbeat recording
+  useEffect(() => {
+    if (!activeDocument) return;
+    
+    // Send reading heartbeat every 15 seconds
+    const interval = setInterval(async () => {
+      try {
+        const token = await getToken();
+        await api.sendHeartbeat(15, token);
+      } catch (err) {
+        console.error("Failed to send reading heartbeat", err);
+      }
+    }, 15000);
+    
+    return () => clearInterval(interval);
+  }, [activeDocument, getToken]);
+
   useEffect(() => {
     setLoading(true);
     setSelection(null);
@@ -129,6 +151,11 @@ export default function Reader() {
       </div>
     );
   }
+
+  // Filter highlights on this page
+  const pageHighlights = highlights.filter(
+    (h) => h.document_id === activeDocument.id && h.page_index === currentPage
+  );
 
   // Define background/text classes based on theme
   const getThemeClasses = () => {
@@ -197,68 +224,150 @@ export default function Reader() {
         </div>
       </div>
 
-      {/* Main Document Content Container */}
-      <div 
-        ref={containerRef}
-        onMouseUp={handleMouseUp}
-        className="flex-1 overflow-auto p-8 flex justify-center relative focus:outline-none scroll-smooth"
-      >
-        {/* Selection Popover */}
-        {selection && (
-          <div 
-            style={{ 
-              position: "absolute",
-              left: `${selection.coords.x}px`,
-              top: `${selection.coords.y}px`,
-              transform: "translateX(-50%)"
-            }}
-            className="flex items-center bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl py-1 px-1.5 border border-slate-700/50 z-30 animate-in fade-in slide-in-from-bottom-2 duration-150 gap-1"
-          >
-            <button
-              onClick={triggerHighlight}
-              disabled={creatingHighlight}
-              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-md transition-colors text-indigo-400"
+      {/* Main Split Layout */}
+      <div className="flex-1 flex flex-row overflow-hidden min-h-0 w-full">
+        {/* PDF Reader Canvas Area */}
+        <div 
+          ref={containerRef}
+          onMouseUp={handleMouseUp}
+          className="flex-1 overflow-auto p-8 flex justify-center relative focus:outline-none scroll-smooth min-w-0"
+        >
+          {/* Selection Popover */}
+          {selection && (
+            <div 
+              style={{ 
+                position: "absolute",
+                left: `${selection.coords.x}px`,
+                top: `${selection.coords.y}px`,
+                transform: "translateX(-50%)"
+              }}
+              className="flex items-center bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-xl py-1 px-1.5 border border-slate-700/50 z-30 animate-in fade-in slide-in-from-bottom-2 duration-150 gap-1"
             >
-              {creatingHighlight ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Highlighter size={13} />
-              )}
-              Highlight
-            </button>
-            <div className="w-px h-4 bg-slate-700" />
-            <span className="text-[10px] text-slate-400 px-1 truncate max-w-[120px]">
-              "{selection.text.substring(0, 15)}..."
-            </span>
-          </div>
-        )}
-
-        <div className={`shadow-lg border rounded-sm p-4 transition-colors ${getThemeClasses()}`}>
-          {loading && (
-            <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-              <Loader2 className="animate-spin text-indigo-500 mb-2" size={32} />
-              <p className="text-sm text-slate-500">Loading document...</p>
+              <button
+                onClick={triggerHighlight}
+                disabled={creatingHighlight}
+                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-md transition-colors text-indigo-400"
+              >
+                {creatingHighlight ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Highlighter size={13} />
+                )}
+                Highlight
+              </button>
+              <div className="w-px h-4 bg-slate-700" />
+              <span className="text-[10px] text-slate-400 px-1 truncate max-w-[120px]">
+                "{selection.text.substring(0, 15)}..."
+              </span>
             </div>
           )}
-          
-          <Document
-            file={fileUrl}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            onLoadError={(err) => {
-              console.error("PDF loading error:", err);
-              setLoading(false);
-            }}
-            loading={null}
-          >
-            <Page
-              pageNumber={currentPage}
-              scale={scale}
-              renderAnnotationLayer={false}
-              renderTextLayer={true}
-              className="mx-auto"
+
+          <div className={`shadow-lg border rounded-sm p-4 transition-colors ${getThemeClasses()} self-start`}>
+            {loading && (
+              <div className="flex flex-col items-center justify-center p-20 min-h-[400px] w-[600px]">
+                <Loader2 className="animate-spin text-indigo-500 mb-2" size={32} />
+                <p className="text-sm text-slate-500">Loading document...</p>
+              </div>
+            )}
+            
+            <Document
+              file={fileUrl}
+              onLoadSuccess={handleDocumentLoadSuccess}
+              onLoadError={(err) => {
+                console.error("PDF loading error:", err);
+                setLoading(false);
+              }}
               loading={null}
-            />
-          </Document>
+            >
+              <Page
+                pageNumber={currentPage}
+                scale={scale}
+                renderAnnotationLayer={false}
+                renderTextLayer={true}
+                className="mx-auto"
+                loading={null}
+              />
+            </Document>
+          </div>
+        </div>
+
+        {/* Right Companion Panel */}
+        <div className="w-80 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 h-full overflow-hidden">
+          {/* Tab Selector Header */}
+          <div className="h-10 flex border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider shrink-0 bg-slate-50 dark:bg-slate-900">
+            <button
+              onClick={() => setActiveTab("companion")}
+              className={`flex-1 flex items-center justify-center gap-1.5 border-b-2 transition-all ${
+                activeTab === "companion"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800/40"
+                  : "border-transparent text-slate-400 hover:text-slate-650 dark:hover:text-slate-350"
+              }`}
+            >
+              <Bot size={13} /> AI Companion
+            </button>
+            <button
+              onClick={() => setActiveTab("highlights")}
+              className={`flex-1 flex items-center justify-center gap-1.5 border-b-2 transition-all ${
+                activeTab === "highlights"
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800/40"
+                  : "border-transparent text-slate-400 hover:text-slate-650 dark:hover:text-slate-350"
+              }`}
+            >
+              <Highlighter size={13} /> Highlights
+            </button>
+          </div>
+
+          {/* Tab Contents */}
+          <div className="flex-1 overflow-hidden min-h-0">
+            {activeTab === "companion" ? (
+              <ChatPanel documentId={activeDocument.id} currentPage={currentPage} />
+            ) : (
+              /* Highlights list for current page */
+              <div className="h-full overflow-y-auto p-4 space-y-4">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Page {currentPage} Highlights
+                </h3>
+                {pageHighlights.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
+                    <Highlighter className="mx-auto mb-2 opacity-30 text-slate-400" size={24} />
+                    <p className="text-xs">No highlights on this page.</p>
+                    <p className="text-[10px] mt-0.5 text-slate-400">Select text to save a highlight</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pageHighlights.map((hl) => (
+                      <div 
+                        key={hl.id} 
+                        className="border border-slate-100 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-900/40 p-3 rounded-xl space-y-2 text-xs"
+                      >
+                        <blockquote className="italic border-l-2 border-indigo-500 pl-2 text-slate-700 dark:text-slate-300 font-medium">
+                          "{hl.text}"
+                        </blockquote>
+                        
+                        {hl.explanation && (
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-2 bg-white dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100/50 dark:border-slate-800/40 leading-relaxed shadow-sm">
+                            <strong className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 block mb-0.5 uppercase tracking-wider">
+                              Simple Explanation:
+                            </strong>
+                            {hl.explanation}
+                          </div>
+                        )}
+                        
+                        {hl.translation && (
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100/50 dark:border-slate-800/40 leading-relaxed shadow-sm">
+                            <strong className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 block mb-0.5 uppercase tracking-wider">
+                              Hindi Translation:
+                            </strong>
+                            {hl.translation}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

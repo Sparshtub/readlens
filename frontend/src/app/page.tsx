@@ -13,7 +13,8 @@ import {
   Trash2, 
   Calendar, 
   Award, 
-  TrendingUp 
+  TrendingUp,
+  Loader2
 } from "lucide-react";
 
 
@@ -32,6 +33,21 @@ export default function Home() {
   } = useReaderStore();
   
   const [currentView, setCurrentView] = useState<"library" | "notes" | "analytics">("library");
+  
+  // Analytics State
+  interface DailyLogItem {
+    date: string;
+    seconds: number;
+  }
+  interface AnalyticsData {
+    streak_days: number;
+    total_highlights: number;
+    total_documents: number;
+    total_reading_time_seconds: number;
+    daily_logs: DailyLogItem[];
+  }
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(false);
 
   // Load user highlights globally
   useEffect(() => {
@@ -46,6 +62,25 @@ export default function Home() {
     }
     loadHighlights();
   }, [setHighlights, getToken]);
+
+  // Load analytics when view shifts to analytics tab
+  useEffect(() => {
+    if (currentView !== "analytics") return;
+    
+    async function loadAnalytics() {
+      setLoadingAnalytics(true);
+      try {
+        const token = await getToken();
+        const data = await api.getAnalytics(token);
+        setAnalytics(data);
+      } catch (err) {
+        console.error("Failed to load analytics:", err);
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    }
+    loadAnalytics();
+  }, [currentView, getToken]);
 
   // Handle active document change to switch view
   useEffect(() => {
@@ -155,61 +190,83 @@ export default function Home() {
                   <p className="mt-2 text-sm text-slate-500">Track your daily reading stats and highlights progress.</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Streak Card */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
-                    <div className="bg-orange-50 dark:bg-orange-950/30 text-orange-600 p-3.5 rounded-xl">
-                      <Calendar size={24} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Reading Streak</p>
-                      <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">3 Days</h3>
-                    </div>
+                {loadingAnalytics || !analytics ? (
+                  <div className="flex justify-center py-20">
+                    <Loader2 className="animate-spin text-indigo-500" size={32} />
                   </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Streak Card */}
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
+                        <div className="bg-orange-50 dark:bg-orange-950/30 text-orange-600 p-3.5 rounded-xl">
+                          <Calendar size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Reading Streak</p>
+                          <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">
+                            {analytics.streak_days} {analytics.streak_days === 1 ? "Day" : "Days"}
+                          </h3>
+                        </div>
+                      </div>
 
-                  {/* Highlights Card */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
-                    <div className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 p-3.5 rounded-xl">
-                      <StickyNote size={24} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Highlights</p>
-                      <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">{highlights.length} Notes</h3>
-                    </div>
-                  </div>
+                      {/* Highlights Card */}
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
+                        <div className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 p-3.5 rounded-xl">
+                          <StickyNote size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Highlights</p>
+                          <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">
+                            {analytics.total_highlights} {analytics.total_highlights === 1 ? "Note" : "Notes"}
+                          </h3>
+                        </div>
+                      </div>
 
-                  {/* Progress Card */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
-                    <div className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 p-3.5 rounded-xl">
-                      <Award size={24} />
+                      {/* Total Reading Time Card */}
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-4">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 p-3.5 rounded-xl">
+                          <Award size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Reading Time</p>
+                          <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">
+                            {Math.round(analytics.total_reading_time_seconds / 60)} Min
+                          </h3>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Learning Level</p>
-                      <h3 className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">Novice Reader</h3>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="mt-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-                  <h3 className="text-md font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
-                    <TrendingUp size={18} className="text-indigo-500" />
-                    Reading Activity Log
-                  </h3>
-                  <div className="h-48 flex items-end justify-between px-2 pt-6 border-b border-slate-200 dark:border-slate-800">
-                    <div className="flex flex-col items-center w-full gap-2">
-                      <div className="bg-indigo-400 dark:bg-indigo-600 w-10 sm:w-16 h-8 rounded-t-md hover:bg-indigo-500 transition-all" />
-                      <span className="text-[10px] text-slate-400">Fri</span>
+                    {/* CSS Custom Barchart Log */}
+                    <div className="mt-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+                      <h3 className="text-md font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
+                        <TrendingUp size={18} className="text-indigo-500" />
+                        Reading Activity Log
+                      </h3>
+                      
+                      <div className="h-56 flex items-end justify-between px-2 pt-6 border-b border-slate-200 dark:border-slate-800">
+                        {analytics.daily_logs.map((log, idx) => {
+                          const maxSeconds = Math.max(...analytics.daily_logs.map(l => l.seconds), 1);
+                          const heightPercent = Math.min(100, Math.max(5, (log.seconds / maxSeconds) * 90)); // Max 90% height
+                          const minutes = Math.round(log.seconds / 60);
+
+                          return (
+                            <div key={idx} className="flex flex-col items-center w-full gap-2 h-full justify-end">
+                              <div 
+                                style={{ height: `${heightPercent}%` }}
+                                className="bg-indigo-500 dark:bg-indigo-700 w-10 sm:w-16 rounded-t-md hover:bg-indigo-400 dark:hover:bg-indigo-600 transition-all flex items-center justify-center text-[9px] text-white font-bold cursor-help"
+                                title={`${minutes} minute(s)`}
+                              >
+                                {minutes > 0 ? `${minutes}m` : ""}
+                              </div>
+                              <span className="text-[10px] text-slate-400 mb-1">{log.date}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center w-full gap-2">
-                      <div className="bg-indigo-400 dark:bg-indigo-600 w-10 sm:w-16 h-16 rounded-t-md hover:bg-indigo-500 transition-all" />
-                      <span className="text-[10px] text-slate-400">Sat</span>
-                    </div>
-                    <div className="flex flex-col items-center w-full gap-2">
-                      <div className="bg-indigo-500 dark:bg-indigo-700 w-10 sm:w-16 h-36 rounded-t-md hover:bg-indigo-600 transition-all" />
-                      <span className="text-[10px] text-slate-400">Sun</span>
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             )}
           </div>

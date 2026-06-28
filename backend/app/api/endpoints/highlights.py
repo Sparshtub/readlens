@@ -5,6 +5,8 @@ from backend.app.db import models, schemas
 from backend.app.api.deps import get_current_active_user
 from backend.app.db.session import get_db
 
+from backend.app.services.llm_service import llm_service
+
 router = APIRouter()
 
 @router.post("/", response_model=schemas.Highlight)
@@ -21,12 +23,16 @@ def create_highlight(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
         
+    explanation, translation = llm_service.generate_explanation_and_translation(highlight.text)
+        
     db_highlight = models.Highlight(
         document_id=highlight.document_id,
         user_id=current_user.id,
         text=highlight.text,
         page_index=highlight.page_index,
-        selection_coords=highlight.selection_coords
+        selection_coords=highlight.selection_coords,
+        explanation=explanation,
+        translation=translation
     )
     
     db.add(db_highlight)

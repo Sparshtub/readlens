@@ -50,10 +50,27 @@ async def upload_document(
     )
     
     db.add(db_doc)
+    
+    # Extract PDF page contents
+    try:
+        reader = PdfReader(saved_path)
+        for idx, page in enumerate(reader.pages):
+            page_text = page.extract_text() or ""
+            db_page = models.DocumentPage(
+                document_id=file_id,
+                page_index=idx + 1,
+                content=page_text
+            )
+            db.add(db_page)
+    except Exception as e:
+        print(f"Failed to parse PDF page contents: {e}")
+        # Note: We still want the upload to succeed even if text extraction fails
+        
     db.commit()
     db.refresh(db_doc)
     
     return db_doc
+
 
 @router.get("/", response_model=List[schemas.Document])
 def list_documents(

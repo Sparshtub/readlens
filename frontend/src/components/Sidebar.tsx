@@ -1,6 +1,7 @@
 import { useReaderStore } from "@/store/readerStore";
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { UserButton, SignInButton } from "@clerk/nextjs";
 import { isClerkMocked } from "@/lib/auth-helper";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import { 
   BookOpen, 
   StickyNote, 
@@ -22,6 +23,7 @@ interface SidebarProps {
 export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
   const { theme, setTheme, sidebarOpen, toggleSidebar } = useReaderStore();
   const isMock = isClerkMocked();
+  const { isSignedIn } = useAppAuth();
 
   const navigationItems = [
     { id: "library", label: "Library", icon: BookOpen },
@@ -139,16 +141,17 @@ export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
           ) : (
             /* Clerk Active Auth */
             <>
-              <SignedIn>
-                <UserButton afterSignOutUrl="/" />
-                {sidebarOpen && (
-                  <div className="flex flex-col truncate">
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">Account</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Signed In</span>
-                  </div>
-                )}
-              </SignedIn>
-              <SignedOut>
+              {isSignedIn ? (
+                <>
+                  <UserButton />
+                  {sidebarOpen && (
+                    <div className="flex flex-col truncate">
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">Account</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Signed In</span>
+                    </div>
+                  )}
+                </>
+              ) : (
                 <div className="flex items-center gap-2 justify-center w-full">
                   {sidebarOpen ? (
                     <SignInButton mode="modal">
@@ -164,7 +167,7 @@ export default function Sidebar({ currentView, setCurrentView }: SidebarProps) {
                     </SignInButton>
                   )}
                 </div>
-              </SignedOut>
+              )}
             </>
           )}
         </div>

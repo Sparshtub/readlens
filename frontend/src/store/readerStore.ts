@@ -1,9 +1,9 @@
 import { create } from "zustand";
 
 export interface Document {
-  id: str;
-  title: str;
-  file_url: str;
+  id: string;
+  title: string;
+  file_url: string;
   created_at: string;
 }
 

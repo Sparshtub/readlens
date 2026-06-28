@@ -71,5 +71,29 @@ export const api = {
     return fetchWithAuth(`/highlights/${highlightId}`, {
       method: "DELETE",
     }, token);
+  },
+
+  chat: async (data: { document_id: string; page_index: number; question: string }, token?: string | null) => {
+    return fetchWithAuth("/chat/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }, token);
+  },
+
+  sendHeartbeat: async (seconds: number, token?: string | null) => {
+    return fetchWithAuth("/analytics/heartbeat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ seconds }),
+    }, token);
+  },
+
+  getAnalytics: async (token?: string | null) => {
+    return fetchWithAuth("/analytics/", {}, token);
   }
 };
